@@ -21,6 +21,7 @@ function hasChanged(newPos, newScale) {
 
 /**
  * Loads saved viewport coordinates from scene metadata and animates the camera.
+ * Works for both GMs and Players.
  */
 async function restoreSavedViewport() {
   const metadata = await OBR.scene.getMetadata();
@@ -35,7 +36,7 @@ async function restoreSavedViewport() {
       scale: savedViewport.scale,
     });
 
-    // Update internal state so polling doesn't treat the restore motion as a new manual move
+    // Update cached state so polling doesn't treat restoration as manual movement
     lastPosition = savedViewport.position;
     lastScale = savedViewport.scale;
 
@@ -43,9 +44,9 @@ async function restoreSavedViewport() {
     const y = Math.round(savedViewport.position.y);
     const zoom = savedViewport.scale.toFixed(2);
 
-    OBR.notification.show(`Restored Viewport — X: ${x}, Y: ${y}, Zoom: ${zoom}x`);
+    console.log(`[Save Viewport] Restored Viewport — X: ${x}, Y: ${y}, Zoom: ${zoom}x`);
 
-    // Allow manual tracking again after animation completes
+    // Re-enable tracking after camera movement completes
     setTimeout(() => {
       isRestoring = false;
     }, 600);
@@ -53,9 +54,13 @@ async function restoreSavedViewport() {
 }
 
 /**
- * Saves current viewport values to scene metadata.
+ * Saves current viewport values to scene metadata (GM Only).
  */
 async function saveViewportToMetadata(position, scale) {
+  // Double-check GM role before executing write operations
+  const role = await OBR.player.getRole();
+  if (role !== "GM") return;
+
   await OBR.scene.setMetadata({
     [METADATA_KEY]: {
       position,
@@ -68,18 +73,20 @@ async function saveViewportToMetadata(position, scale) {
   const y = Math.round(position.y);
   const zoom = scale.toFixed(2);
 
-  OBR.notification.show(`Saved Viewport — X: ${x}, Y: ${y}, Zoom: ${zoom}x`);
+  console.log(`[Save Viewport] GM Saved Viewport — X: ${x}, Y: ${y}, Zoom: ${zoom}x`);
 }
 
 OBR.onReady(() => {
-  // 1. Listen for scene ready / load events to restore saved viewport
+  console.log("[Save Viewport] Extension initialized and ready.");
+
+  // 1. Listen for scene load events to restore saved viewport for everyone
   OBR.scene.onReadyChange(async (isReady) => {
     if (isReady) {
       await restoreSavedViewport();
     }
   });
 
-  // Check if a scene is already ready when extension initializes
+  // Check if scene is already ready when extension initializes
   OBR.scene.isReady().then((isReady) => {
     if (isReady) {
       restoreSavedViewport();
@@ -88,7 +95,11 @@ OBR.onReady(() => {
 
   // 2. Poll for viewport changes while user pans/zooms
   setInterval(async () => {
-    if (isRestoring) return; // Skip tracking while animating camera on restore
+    if (isRestoring) return; // Skip tracking during restore animation
+
+    // Exit early if the player is not a GM
+    const role = await OBR.player.getRole();
+    if (role !== "GM") return;
 
     const isReady = await OBR.scene.isReady();
     if (!isReady) return;
@@ -100,12 +111,12 @@ OBR.onReady(() => {
       lastPosition = currentPosition;
       lastScale = currentScale;
 
-      // Clear existing debounce timer while moving
+      // Reset debounce timer while GM is moving the camera
       if (debounceTimer) {
         clearTimeout(debounceTimer);
       }
 
-      // Wait 500ms after camera stops moving, then save to metadata
+      // Wait 500ms after GM camera stops, then save to metadata
       debounceTimer = setTimeout(() => {
         saveViewportToMetadata(currentPosition, currentScale);
       }, 500);
