@@ -1,21 +1,29 @@
 import OBR from "@owlbear-rodeo/sdk";
 
+console.log("[Save Viewport] Script loaded into browser memory");
+
 let debounceTimer = null;
 
 OBR.onReady(() => {
-  // Listen for any camera movement or zoom adjustments
+  console.log("[Save Viewport] OBR.onReady triggered successfully!");
+
+  // Test notification on startup
+  OBR.notification.show("Save Viewport loaded and listening...");
+
+  // Subscribe to viewport changes
   OBR.viewport.onChange((viewport) => {
-    // Clear existing timer as long as the viewport is actively moving
+    console.log("[Save Viewport] Viewport changed:", viewport);
+
     if (debounceTimer) {
       clearTimeout(debounceTimer);
     }
 
-    // Wait 500ms after movement stops before showing the notification
     debounceTimer = setTimeout(() => {
       const x = Math.round(viewport.position.x);
       const y = Math.round(viewport.position.y);
       const zoom = viewport.scale.toFixed(2);
 
+      console.log(`[Save Viewport] Viewport settled: X=${x}, Y=${y}, Zoom=${zoom}`);
       OBR.notification.show(`Viewport settled — X: ${x}, Y: ${y}, Zoom: ${zoom}x`);
     }, 500);
   });
