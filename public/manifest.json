@@ -1,6 +1,7 @@
 {
   "name": "Save Viewport",
   "version": "1.0.1",
+  "author": "jpmcdaniel",
   "manifest_version": 1,
   "icon": "/icon.svg",
   "description": "This extension will save the latest view of every scene and move to that viewpoint when ever the scene is loaded.",
