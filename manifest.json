@@ -1,12 +1,6 @@
 {
   "name": "Save Viewport",
   "version": "1.0.0",
-  "manifest_version": 1,
-  "action": {
-    "title": "Save Viewport",
-    "icon": "/icon.svg",
-    "popover": "/index.html",
-    "height": 200,
-    "width": 300
+  "manifest_version": 1
   }
 }
