@@ -1,30 +1,49 @@
 import OBR from "@owlbear-rodeo/sdk";
 
-console.log("[Save Viewport] Script loaded into browser memory");
-
+let lastPosition = null;
+let lastScale = null;
 let debounceTimer = null;
 
+// Helper to check if coordinates or scale changed significantly
+function hasChanged(newPos, newScale) {
+  if (!lastPosition || lastScale === null) return true;
+
+  const dx = Math.abs(newPos.x - lastPosition.x);
+  const dy = Math.abs(newPos.y - lastPosition.y);
+  const dScale = Math.abs(newScale - lastScale);
+
+  // Trigger if moved by more than 1 unit or zoom changed
+  return dx > 1 || dy > 1 || dScale > 0.001;
+}
+
 OBR.onReady(() => {
-  console.log("[Save Viewport] OBR.onReady triggered successfully!");
+  // Poll the viewport state every 100ms
+  setInterval(async () => {
+    // Verify scene is ready before querying viewport
+    const isReady = await OBR.scene.isReady();
+    if (!isReady) return;
 
-  // Test notification on startup
-  OBR.notification.show("Save Viewport loaded and listening...");
+    const currentPosition = await OBR.viewport.getPosition();
+    const currentScale = await OBR.viewport.getScale();
 
-  // Subscribe to viewport changes
-  OBR.viewport.onChange((viewport) => {
-    console.log("[Save Viewport] Viewport changed:", viewport);
+    if (hasChanged(currentPosition, currentScale)) {
+      // Update cached values
+      lastPosition = currentPosition;
+      lastScale = currentScale;
 
-    if (debounceTimer) {
-      clearTimeout(debounceTimer);
+      // Reset debounce timer on movement
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+
+      // Trigger notification 500ms after camera comes to rest
+      debounceTimer = setTimeout(() => {
+        const x = Math.round(currentPosition.x);
+        const y = Math.round(currentPosition.y);
+        const zoom = currentScale.toFixed(2);
+
+        OBR.notification.show(`Viewport settled — X: ${x}, Y: ${y}, Zoom: ${zoom}x`);
+      }, 500);
     }
-
-    debounceTimer = setTimeout(() => {
-      const x = Math.round(viewport.position.x);
-      const y = Math.round(viewport.position.y);
-      const zoom = viewport.scale.toFixed(2);
-
-      console.log(`[Save Viewport] Viewport settled: X=${x}, Y=${y}, Zoom=${zoom}`);
-      OBR.notification.show(`Viewport settled — X: ${x}, Y: ${y}, Zoom: ${zoom}x`);
-    }, 500);
-  });
+  }, 100);
 });
