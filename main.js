@@ -3,14 +3,14 @@ import OBR from "@owlbear-rodeo/sdk";
 let debounceTimer = null;
 
 OBR.onReady(() => {
-  // Listen for changes to the viewport (pan or zoom)
+  // Listen for any camera movement or zoom adjustments
   OBR.viewport.onChange((viewport) => {
-    // Clear any pending notification timer while camera is still moving
+    // Clear existing timer as long as the viewport is actively moving
     if (debounceTimer) {
       clearTimeout(debounceTimer);
     }
 
-    // Set a new timer to fire 500ms after the camera comes to rest
+    // Wait 500ms after movement stops before showing the notification
     debounceTimer = setTimeout(() => {
       const x = Math.round(viewport.position.x);
       const y = Math.round(viewport.position.y);
