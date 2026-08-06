@@ -17,14 +17,7 @@
 <body>
   <h3>Save Viewport</h3>
   <p id="status">Connecting to Owlbear Rodeo...</p>
-
-  <!-- Load Owlbear Rodeo SDK v2 -->
-  <script src="./main.js"></script>
-  <script>
-    // Wait for the Owlbear Rodeo SDK to be ready
-    OBR.onReady(() => {
-      document.getElementById('status').innerText = "Connected to room successfully!";
-    });
-  </script>
+  
+  <script type="module" src="/main.js"></script>
 </body>
 </html>
