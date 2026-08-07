@@ -27,7 +27,7 @@ When a GM pans or zooms around a map, the extension quietly tracks the camera mo
 
 ### Setup Instructions
 
-1. Copy your hosted manifest URL (e.g., `https://your-app.onrender.com/manifest.json`).
+1. Copy the manifest URL: `https://save-viewport.pupok.com/manifest.json`.
 2. In Owlbear Rodeo, open **Settings** > **Extensions**.
 3. Click **+** (Add Extension), paste the manifest URL, and click **Install**.
 
