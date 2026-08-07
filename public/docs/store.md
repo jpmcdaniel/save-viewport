@@ -7,7 +7,7 @@ icon: https://save-viewport.pupok.com/icon.svg
 tags:
   - tool
 manifest: https://save-viewport.pupok.com/manifest.json
-learn-more:
+learn-more: https://save-viewport.pupok.com/docs/learn_more.html
 ---
 # Save Viewport
 
