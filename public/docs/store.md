@@ -2,7 +2,7 @@
 title: Save Viewport
 description: This extension will save the latest GM view of every scene and move to that viewpoint when ever the scene is loaded.
 author: jpmcdaniel
-image: 
+image: https://save-viewport.pupok.com/docs/hero.png
 icon: https://save-viewport.pupok.com/icon.svg
 tags:
   - tool
