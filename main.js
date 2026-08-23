@@ -6,11 +6,12 @@ const METADATA_KEY = "com.save-viewport.app/viewport";
 let lastPosition = null;
 let lastScale = null;
 let debounceTimer = null;
-let isRestoring = false; // Flag to prevent infinite save loops during animation
+let isRestoring = false;
+let isSceneInitializing = true; // Guard flag to prevent premature saves on scene load
 
 // Helper to check if camera moved significantly
 function hasChanged(newPos, newScale) {
-  if (!lastPosition || lastScale === null) return true;
+  if (!lastPosition || lastScale === null) return false; // Don't treat initial baseline setup as a change
 
   const dx = Math.abs(newPos.x - lastPosition.x);
   const dy = Math.abs(newPos.y - lastPosition.y);
@@ -20,41 +21,55 @@ function hasChanged(newPos, newScale) {
 }
 
 /**
- * Loads saved viewport coordinates from scene metadata and animates the camera.
- * Works for both GMs and Players.
+ * Handles scene entry: restores saved viewport if present,
+ * establishes the baseline coordinates, and opens saving after settling.
  */
-async function restoreSavedViewport() {
+async function handleSceneLoad() {
+  isSceneInitializing = true;
+  isRestoring = true;
+
+  // Clear any dangling debounce timers from previous scenes
+  if (debounceTimer) {
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
+  }
+
   try {
     const metadata = await OBR.scene.getMetadata();
     const savedViewport = metadata[METADATA_KEY];
 
     if (savedViewport && savedViewport.position && savedViewport.scale) {
-      isRestoring = true;
-
-      // Move camera to saved position
+      // Animate camera to saved coordinates
       await OBR.viewport.animateTo({
         position: savedViewport.position,
         scale: savedViewport.scale,
       });
 
-      // Update cached state so polling doesn't treat restoration as manual movement
-      lastPosition = savedViewport.position;
-      lastScale = savedViewport.scale;
-
       const x = Math.round(savedViewport.position.x);
       const y = Math.round(savedViewport.position.y);
       const zoom = savedViewport.scale.toFixed(2);
-
       console.log(`[Save Viewport] Restored Viewport — X: ${x}, Y: ${y}, Zoom: ${zoom}x`);
-
-      // Re-enable tracking after camera movement completes
-      setTimeout(() => {
-        isRestoring = false;
-      }, 600);
+    } else {
+      console.log("[Save Viewport] No saved viewport found for this scene.");
     }
   } catch (error) {
-    console.warn("[Save Viewport] Could not restore viewport (engine not ready yet):", error.message);
+    console.warn("[Save Viewport] Could not read or restore viewport metadata:", error.message);
   }
+
+  // Wait for the animation / canvas renderer to finish settling
+  setTimeout(async () => {
+    try {
+      // Capture the initial settled position as the clean baseline
+      lastPosition = await OBR.viewport.getPosition();
+      lastScale = await OBR.viewport.getScale();
+    } catch (e) {
+      // Fallback if engine is momentarily busy
+    }
+
+    isRestoring = false;
+    isSceneInitializing = false;
+    console.log("[Save Viewport] Scene initialization complete. Movement tracking enabled.");
+  }, 700);
 }
 
 /**
@@ -62,7 +77,6 @@ async function restoreSavedViewport() {
  */
 async function saveViewportToMetadata(position, scale) {
   try {
-    // Double-check GM role before executing write operations
     const role = await OBR.player.getRole();
     if (role !== "GM") return;
 
@@ -87,57 +101,70 @@ async function saveViewportToMetadata(position, scale) {
 OBR.onReady(() => {
   console.log("[Save Viewport] Extension initialized and ready.");
 
-  // 1. Listen for scene load events to restore saved viewport for everyone
-  OBR.scene.onReadyChange(async (isReady) => {
+  // 1. Listen for scene ready / switch events
+  OBR.scene.onReadyChange((isReady) => {
     if (isReady) {
-      // Small delay to allow the canvas rendering engine to attach completely
       setTimeout(() => {
-        restoreSavedViewport();
+        handleSceneLoad();
       }, 200);
+    } else {
+      // Mark initializing and clear timers when scene unloads
+      isSceneInitializing = true;
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+        debounceTimer = null;
+      }
     }
   });
 
-  // Check if scene is already ready when extension initializes
+  // Handle case where room/scene is already ready on boot
   OBR.scene.isReady().then((isReady) => {
     if (isReady) {
       setTimeout(() => {
-        restoreSavedViewport();
+        handleSceneLoad();
       }, 200);
     }
   });
 
-  // 2. Poll for viewport changes while user pans/zooms
+  // 2. Poll for viewport movements
   setInterval(async () => {
-    if (isRestoring) return; // Skip tracking during restore animation
+    // Block polling during scene loads or restore animations
+    if (isSceneInitializing || isRestoring) return;
 
     try {
-      // Exit early if the player is not a GM
       const role = await OBR.player.getRole();
       if (role !== "GM") return;
 
       const isReady = await OBR.scene.isReady();
       if (!isReady) return;
 
-      // Wrap viewport reads safely
       const currentPosition = await OBR.viewport.getPosition();
       const currentScale = await OBR.viewport.getScale();
+
+      // If lastPosition is not yet established, initialize it without saving
+      if (!lastPosition || lastScale === null) {
+        lastPosition = currentPosition;
+        lastScale = currentScale;
+        return;
+      }
 
       if (hasChanged(currentPosition, currentScale)) {
         lastPosition = currentPosition;
         lastScale = currentScale;
 
-        // Reset debounce timer while GM is moving the camera
         if (debounceTimer) {
           clearTimeout(debounceTimer);
         }
 
-        // Wait 500ms after GM camera stops, then save to metadata
         debounceTimer = setTimeout(() => {
-          saveViewportToMetadata(currentPosition, currentScale);
+          // Double-check flags before saving
+          if (!isSceneInitializing && !isRestoring) {
+            saveViewportToMetadata(currentPosition, currentScale);
+          }
         }, 500);
       }
     } catch (e) {
-      // Engine not bound yet (e.g. mid-scene transition) — safely ignore this tick
+      // Safely ignore transient unbounds during transitions
     }
   }, 100);
 });
