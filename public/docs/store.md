@@ -11,7 +11,7 @@ learn-more: https://save-viewport.pupok.com/docs/learn_more.html
 ---
 # Save Viewport
 
-**Save Viewport** keeps your game focused by automatically bookmarking and restoring camera views across scenes in Owlbear Rodeo. 
+**Save Viewport** keeps your game focused by automatically saving and restoring camera views across scenes in Owlbear Rodeo. 
 
 When a GM pans or zooms around a map, the extension quietly tracks the camera movement in the background. Once the camera comes to rest, **Save Viewport** attaches the exact coordinates and zoom level directly to that scene's metadata. Whenever you or your players switch to or reload that scene, the view automatically animates straight back to the saved position.
 
